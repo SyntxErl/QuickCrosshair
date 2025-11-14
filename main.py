@@ -18,7 +18,7 @@ vehicles = {
         },
         "BMD-4M & BMP-3M": {
             "zoom_levels": [2.5],
-            "offset": {"x": 0, "y": -0},
+            "offset": {"x": 0, "y": 0},
             "projectiles": {
                 "DTB02-100 HE": {"velocity": 355, "gravity_modifier": 2},
                 "3UOR6 HE": {"velocity": 900, "gravity_modifier": 1},
@@ -179,6 +179,13 @@ vehicles = {
                 "ZIS-3 Frag": {"velocity": 700, "gravity_modifier": 2},
             },
         },
+        "AGS-17": {
+            "zoom_levels": [1],
+            "offset": {"x": 0, "y": 0},
+            "projectiles": {
+                "AGS-17 grenade": {"velocity": 185, "gravity_modifier": 1.8},
+            },
+        },
     },
     "INF": {
         "Grenade launcher": {
@@ -203,6 +210,41 @@ def calculate_screen_offset(v, g, d, dy, resolutionh, resolutionv, FOVh_degrees,
     conversion = resolutionv / virtual_height
     decalage_pixels = height_m * conversion
     return decalage_pixels, math.degrees(angle_low)
+
+modern_style = """
+QMainWindow {
+    background-color: #f9f9f9;
+}
+QWidget {
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 14px;
+}
+QLabel {
+    color: #333;
+    margin-bottom: 4px;
+}
+QComboBox, QDoubleSpinBox, QSpinBox {
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 4px;
+    min-width: 100px;
+}
+QPushButton {
+    background-color: #5cb85c;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-weight: bold;
+}
+QPushButton:hover {
+    background-color: #4cae4c;
+}
+QPushButton:pressed {
+    background-color: #449d44;
+}
+"""
 
 class CrosshairWindow(QWidget):
     def __init__(self, offset_x, offset_y):
@@ -236,6 +278,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Calcul balistique")
+        self.setStyleSheet(modern_style)
         self.crosshair = None
 
         self.categoryComboBox = QComboBox()
@@ -247,11 +290,12 @@ class MainWindow(QMainWindow):
         self.fovInput = QDoubleSpinBox()
         self.resolutionHInput = QSpinBox()
         self.resolutionVInput = QSpinBox()
+        self.aspectRatioInput = QDoubleSpinBox()
         self.toggleCrosshairButton = QPushButton("Activer réticule")
         self.toggleCrosshairButton.setCheckable(True)
         self.resultLabel = QLabel()
+        self.resultLabel.setWordWrap(True)
 
-        # Configuration des spin boxes
         self.distanceInput.setRange(0, 100000)
         self.distanceInput.setValue(1250)
         self.heightInput.setRange(-10000, 10000)
@@ -259,19 +303,22 @@ class MainWindow(QMainWindow):
         self.zoomInput.setRange(0.1, 1000)
         self.zoomInput.setDecimals(2)
         self.zoomInput.setValue(1)
-
         self.fovInput.setRange(10, 180)
         self.fovInput.setDecimals(1)
         self.fovInput.setValue(90)
-
         self.resolutionHInput.setRange(1, 10000)
         self.resolutionHInput.setValue(2560)
         self.resolutionVInput.setRange(1, 10000)
         self.resolutionVInput.setValue(1440)
+        self.aspectRatioInput.setRange(0.1, 10)
+        self.aspectRatioInput.setDecimals(3)
+        self.aspectRatioInput.setValue(16/9)
 
         centralWidget = QWidget()
         self.setCentralWidget(centralWidget)
         layout = QVBoxLayout(centralWidget)
+        layout.setSpacing(10)
+        layout.setContentsMargins(20, 20, 20, 20)
 
         layout.addWidget(QLabel("Catégorie:"))
         layout.addWidget(self.categoryComboBox)
@@ -307,6 +354,11 @@ class MainWindow(QMainWindow):
         resolutionLayout.addWidget(self.resolutionVInput)
         layout.addLayout(resolutionLayout)
 
+        aspectLayout = QHBoxLayout()
+        aspectLayout.addWidget(QLabel("Aspect ratio (personnalisé):"))
+        aspectLayout.addWidget(self.aspectRatioInput)
+        layout.addLayout(aspectLayout)
+
         layout.addWidget(self.toggleCrosshairButton)
         layout.addWidget(self.resultLabel)
 
@@ -320,6 +372,7 @@ class MainWindow(QMainWindow):
         self.fovInput.valueChanged.connect(self.projectileChanged)
         self.resolutionHInput.valueChanged.connect(self.projectileChanged)
         self.resolutionVInput.valueChanged.connect(self.projectileChanged)
+        self.aspectRatioInput.valueChanged.connect(self.projectileChanged)
         self.toggleCrosshairButton.toggled.connect(self.toggleCrosshair)
 
         self.categoryChanged(0)
@@ -364,11 +417,10 @@ class MainWindow(QMainWindow):
         dy = self.heightInput.value()
         zoom_factor = self.zoomInput.value()
 
-        # Récupération des paramètres personnalisables depuis l'interface
         resolutionh = self.resolutionHInput.value()
         resolutionv = self.resolutionVInput.value()
         FOVh_degrees = self.fovInput.value()
-        aspect_ratio = resolutionh / resolutionv
+        aspect_ratio = self.aspectRatioInput.value()
 
         g = 9.78 * gravity_modifier
         v = base_v
@@ -380,7 +432,6 @@ class MainWindow(QMainWindow):
         if decalage_pixels is None:
             result_text = angle_degrees
         else:
-            # Appliquer le zoom après calcul
             decalage_pixels *= zoom_factor
             flight_time = d / (v * math.cos(math.radians(angle_degrees)))
             result_text = (f"Angle de tir: {angle_degrees:.2f}°\n"
@@ -411,5 +462,6 @@ class MainWindow(QMainWindow):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
+    window.resize(400, 600)
     window.show()
     sys.exit(app.exec_())
